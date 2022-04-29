@@ -1,4 +1,4 @@
-/*******************************************************************/ 
+/*******************************************************************/
 /*  This is a simple "hello" program that runs on linux kernel     */
 /*  To run the program: sudo insmod hello.ko                       */
 /*  To quit the progarm: sudo rmmod hello                          */
@@ -21,18 +21,18 @@ static int howmany = 1;
 module_param(howmany, int, S_IRUGO);
 module_param(whom, charp, S_IRUGO);
 
-static int __init hello_init (void)
+static int __init hello_init(void)
 {
     int i;
     for (i = 0; i < howmany; ++i)
     {
         printk(KERN_ALERT "Hello, %s :)\n", whom);
     }
-    
+
     return 0;
 }
 
-static void __exit hello_exit (void)
+static void __exit hello_exit(void)
 {
     printk("Goodbye, cruel world\n");
 }
