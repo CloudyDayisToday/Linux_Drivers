@@ -1,1 +1,0 @@
-cmd_/home/christina/Linux_Drivers/hello/Module.symvers := sed 's/\.ko$$/\.o/' /home/christina/Linux_Drivers/hello/modules.order | scripts/mod/modpost -m -a  -o /home/christina/Linux_Drivers/hello/Module.symvers -e -i Module.symvers   -T -
