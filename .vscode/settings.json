@@ -1,6 +1,7 @@
 {
     "files.associations": {
-        "module.h": "c"
+        "module.h": "c",
+        "types.h": "c"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }

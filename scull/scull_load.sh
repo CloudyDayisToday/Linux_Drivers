@@ -2,6 +2,7 @@
 
 # This is a file to make a special file for scull device
 # A special file allows read/write access to device
+# To run the file: sudo sh scull_load.sh
 
 module="scull"
 device="scull"
