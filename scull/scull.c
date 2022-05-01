@@ -31,6 +31,8 @@ int scull_open(struct inode *inode, struct file *filp)
 {
     struct scull_dev *dev;
 
+    printk(KERN_INFO "Scull device is being opened\n");
+
     dev = container_of(inode->i_cdev, struct scull_dev, cdev);
     filp->private_data = dev;
 
@@ -38,7 +40,6 @@ int scull_open(struct inode *inode, struct file *filp)
     {
         scull_trim(dev);
     }
-
     return 0;
 }
 
@@ -70,12 +71,15 @@ int scull_trim(struct scull_dev *dev)
 
 int scull_release(struct inode *inode, struct file *filp)
 {
+    printk(KERN_INFO "Scull device is being released\n");
     return 0;
 }
 
 struct scull_qset *scull_follow(struct scull_dev *dev, int n)
 {
     struct scull_qset *qs = dev->data;
+
+    printk(KERN_INFO "Scull device is being followed\n");
 
     if (!qs)
     {
@@ -108,6 +112,8 @@ ssize_t scull_read(struct file *filp, char __user *buf, size_t count, loff_t *f_
     int itemsize = quantum * qset;
     int item, s_pos, q_pos, rest;
     ssize_t retval = 0;
+
+    printk(KERN_INFO "Scull device is being read\n");
 
     if (down_interruptible(&dev->sem))
         return -ERESTARTSYS;
@@ -150,6 +156,8 @@ ssize_t scull_write(struct file *filp, const char __user *buf, size_t count, lof
     int itemsize = quantum * qset;
     int item, s_pos, q_pos, rest;
     ssize_t retval = -ENOMEM; /* value used in "goto" statement */
+
+    printk(KERN_INFO "Scull device is being written\n");
 
     if (down_interruptible(&dev->sem))
         return -ERESTARTSYS;
@@ -223,9 +231,11 @@ static void scull_setup_cdev(struct scull_dev *dev, int index)
 
 static void scull_exit(void)
 {
-    printk(KERN_ALERT "Scull device is de-initilised\n");
     dev_t dev = MKDEV(scull_major, scull_minor);
     int i;
+
+    printk(KERN_INFO "Scull device is de-initialised\n");
+
     if (scull_devices)
     {
         for (i = 0; i < scull_nr_devs; ++i)
@@ -243,7 +253,7 @@ static int __init scull_init(void)
     dev_t dev;
     int result, i;
 
-    printk(KERN_ALERT "Scull device is initilised\n");
+    printk(KERN_INFO "Scull device is initilised\n");
 
     if (scull_major)
     {

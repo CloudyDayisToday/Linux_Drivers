@@ -5,7 +5,12 @@ ifeq ($(KERNELRELEASE),)
 KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
 
-.PHONY: modules clean
+.PHONY: modules clean test
+
+default: test modules
+
+test: test_scull_drivers.c 
+	gcc test_scull_drivers.c -o test_scull_drivers
 
 modules:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
@@ -20,3 +25,6 @@ else
 obj-m := scull.o
 
 endif
+
+
+
