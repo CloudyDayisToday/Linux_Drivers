@@ -1,7 +1,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     // Open and close four devices to test all the drivers
     for (int i = 0; i < 4; ++i)

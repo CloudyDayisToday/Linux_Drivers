@@ -288,16 +288,13 @@ static int __init scull_init(void)
         sema_init(&scull_devices[i].sem, 1);
         scull_setup_cdev(&scull_devices[i], i);
     }
-    
+
     return 0; // return sucess
 
-    fail: 
-        scull_exit();
-        return result;    
-
+fail:
+    scull_exit();
+    return result;
 }
-
-
 
 /* Essential to initialise and deinitialise a module */
 module_init(scull_init);
