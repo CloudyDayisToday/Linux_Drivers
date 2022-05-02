@@ -57,9 +57,11 @@ int scull_trim(struct scull_dev *dev)
             {
                 kfree(dptr->data[i]);
             }
+            kfree(dptr->data);
+            dptr->data = NULL;
         }
-        kfree(dptr->data);
-        dptr->data = NULL;
+        next = dptr->next;
+        kfree(dptr);
     }
     dev->size = 0;
     dev->quantum = scull_quantum;
@@ -85,7 +87,9 @@ struct scull_qset *scull_follow(struct scull_dev *dev, int n)
     {
         qs = dev->data = kmalloc(sizeof(struct scull_qset), GFP_KERNEL);
         if (qs == NULL)
+        {
             return NULL;
+        }
         memset(qs, 0, sizeof(struct scull_qset));
     }
 
@@ -95,11 +99,12 @@ struct scull_qset *scull_follow(struct scull_dev *dev, int n)
         {
             qs->next = kmalloc(sizeof(struct scull_qset), GFP_KERNEL);
             if (qs->next == NULL)
+            {
                 return NULL;
+            }
             memset(qs, 0, sizeof(struct scull_qset));
         }
         qs = qs->next;
-        continue;
     }
     return qs;
 }
@@ -159,9 +164,6 @@ ssize_t scull_write(struct file *filp, const char __user *buf, size_t count, lof
 
     printk(KERN_INFO "Scull device is being written\n");
 
-    if (down_interruptible(&dev->sem))
-        return -ERESTARTSYS;
-
     item = (long)*f_pos / itemsize;
     rest = (long)*f_pos % itemsize;
     s_pos = rest / quantum;
@@ -202,16 +204,13 @@ ssize_t scull_write(struct file *filp, const char __user *buf, size_t count, lof
         dev->size = *f_pos;
 
 out:
-    up(&dev->sem);
     return retval;
 }
 
 struct file_operations scull_fops = {
     .owner = THIS_MODULE,
-    //.llseek = scull_llseek,
     .read = scull_read,
     .write = scull_write,
-    //.ioctl = scull_ioctl,
     .open = scull_open,
     .release = scull_release
 };
@@ -225,7 +224,7 @@ static void scull_setup_cdev(struct scull_dev *dev, int index)
     err = cdev_add(&dev->cdev, devno, 1);
     if (err)
     {
-        printk(KERN_NOTICE "Error %d adding scull%d", err, index);
+        printk(KERN_NOTICE "Error %d adding scull%d\n", err, index);
     }
 }
 
@@ -285,7 +284,6 @@ static int __init scull_init(void)
     {
         scull_devices[i].quantum = scull_quantum;
         scull_devices[i].qset = scull_qset;
-        sema_init(&scull_devices[i].sem, 1);
         scull_setup_cdev(&scull_devices[i], i);
     }
 

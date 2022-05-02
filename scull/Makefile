@@ -19,10 +19,10 @@ clean:
 	$(RM) -r *.o *.symvers .*.cmd *.mod* *.order *.ko
 
 # Otherwise we've been invoked from the kernel build system
-# ad can use its language
+# and can use its language
 else 
 
-obj-m := scull.o
+obj-m := scull_correct.o
 
 endif
 
