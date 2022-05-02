@@ -3,7 +3,6 @@
 # This is a file to make a special file for scull device
 # A special file allows read/write access to device
 # To run the file: sudo sh scull_load.sh
-
 module="scull"
 device="scull"
 mode="664"
@@ -19,8 +18,10 @@ mknod /dev/${device}1 c $major 1
 mknod /dev/${device}2 c $major 2
 mknod /dev/${device}3 c $major 3
 
-#group="staff"
-#grep -q '^staff:' /ect/group || group="wheel"
+# Setting the permission for different types of user
+# Important for write command
+group="christina"
+grep -q '^christina:' /etc/group || group="christina"
 
-#chgrp $group /dev/${device}[0-3]
-#chmode $mode /dev/${device}[0-3]
+chgrp $group /dev/${device}[0-3]
+chmod $mode /dev/${device}[0-3]

@@ -22,7 +22,7 @@ clean:
 # and can use its language
 else 
 
-obj-m := scull_correct.o
+obj-m := scull.o
 
 endif
 

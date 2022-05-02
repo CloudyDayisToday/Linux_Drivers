@@ -120,8 +120,6 @@ ssize_t scull_read(struct file *filp, char __user *buf, size_t count, loff_t *f_
 
     printk(KERN_INFO "Scull device is being read\n");
 
-    if (down_interruptible(&dev->sem))
-        return -ERESTARTSYS;
     if (*f_pos >= dev->size)
         goto out;
     if (*f_pos + count > dev->size)
@@ -149,7 +147,6 @@ ssize_t scull_read(struct file *filp, char __user *buf, size_t count, loff_t *f_
     retval = count;
 
 out:
-    up(&dev->sem);
     return retval;
 }
 
