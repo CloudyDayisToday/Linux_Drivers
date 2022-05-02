@@ -4,6 +4,7 @@
 /*  To quit the progarm: sudo rmmod hello                          */
 /*  When the program is properly loaded, to see the                */
 /*  operation of the module, run: tail /var/log/syslog             */
+/*  to truncate the log: sudo truncate -s -0 /var/log/syslog       */
 /*******************************************************************/
 
 #include <linux/init.h>
