@@ -12,18 +12,38 @@
 #include <linux/cdev.h>
 #include <linux/semaphore.h>
 
-/*-----------------------------------------STRUCT DEFINITION-------*/
+#define DATA_SIZE 1024
+#define SCULL_DEBUG
 
+/*-----------------------------------------DEBUGGING INFO-------*/
+#undef PDEBUG /* udef it, just in case*/
+#ifdef SCULL_DEBUG
+#   ifdef __KERNEL__
+        /* THis one if debugging is on, and kernel space */
+#       define PDEBUG(fmt, args...) printk(KERN_DEBUG "scull: " fmt, ## args)
+#   else 
+        /* This one is for user space */
+#       define PDEBUG(fmt, args...) fprintf(stderr, fmt, ## args)
+#   endif
+#else
+#   define PDEBUG(fmt, args...) /* not debugging: nothing*/
+#endif
+
+#undef PDEBUGG
+#define PDEBUGG(fmt, args...) /* nothing: it's a place holder */
+
+
+/*-----------------------------------------STRUCT DEFINITION-------*/
 /* Define the struct for a scull device */
 struct scull_dev
 {
-    struct scull_qset *data;
-    int quantum;
-    int qset;
-    unsigned long size;
-    unsigned int access_key;
-    struct semaphore sem;
-    struct cdev cdev;
+    struct scull_qset *data; /* Pointer to first quantum set */
+    int quantum; /* the current quantum size*/
+    int qset; /* the current array size */
+    unsigned long size; /* amount of data stored here */
+    unsigned int access_key; /* used by sculluid and scullpriv */
+    struct semaphore sem; /* mutex semaphore */
+    struct cdev cdev; /* Char device structure */
 };
 
 struct scull_qset
@@ -33,7 +53,6 @@ struct scull_qset
 };
 
 /*-----------------------------------------PUBLIC FUNCTION DECLARATION-------*/
-
 /**
  * @brief Initialise a scull driver
  * 
@@ -103,3 +122,22 @@ ssize_t scull_write(struct file *filp, const char __user *buff, size_t count, lo
  * @param index the device number
  */
 static void scull_setup_cdev (struct scull_dev *dev, int index);
+
+/**
+ * @brief Follow the list
+ * 
+ * @param dev scull device
+ * @param n position
+ * @return struct scull_qset* linked list
+ */
+struct scull_qset *scull_follow(struct scull_dev *dev, int n);
+
+/*--------------------------------------------SEQ_FILE INTERFACE------*/
+int scull_read_procmem(char *buf, char **start, off_t offset, int count, int *eof, void *data);
+static void *scull_seq_start(struct seq_file *s, loff_t *pos);
+static void *scull_seq_next(struct seq_file *s, void *v, loff_t *pos);
+static void scull_seq_stop(struct seq_file *s, void *v);
+static int scull_seq_show(struct seq_file *s, void *v);
+static int scull_proc_open(struct inode *inode, struct file *file);
+static void scull_create_proc(void);
+static void scull_remove_proc(void);

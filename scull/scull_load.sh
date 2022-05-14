@@ -18,8 +18,8 @@ mknod /dev/${device}1 c $major 1
 mknod /dev/${device}2 c $major 2
 mknod /dev/${device}3 c $major 3
 
-# Setting the permission for different types of user
-# Important for write command
+# Setting the permission for different users
+# Especially important for 'write' command
 group="christina"
 grep -q '^christina:' /etc/group || group="christina"
 

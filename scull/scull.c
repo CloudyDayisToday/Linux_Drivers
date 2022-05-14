@@ -3,29 +3,40 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+
 #include <linux/types.h> // for device type
 #include <linux/fs.h>    // for obtaining device number
 #include <linux/cdev.h>
 #include <linux/param.h>
 #include <asm/uaccess.h> // access user space memory
 #include <linux/slab.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#include <asm/semaphore.h>
 
 MODULE_AUTHOR("Tzu-Yun Chang");
 MODULE_LICENSE("DUAL BSD/GPL");
 
+/*
+ * Declaring module variables and the module device
+ */
 unsigned int scull_major = 0; // dynamic by default
 unsigned int scull_minor = 0;
 unsigned int scull_nr_devs = 4;    // node number default
-unsigned int scull_quantum = 4000; //
-unsigned int scull_qset = 1000;    //
+unsigned int scull_quantum = 4000; 
+unsigned int scull_qset = 1000;   
+struct scull_dev *scull_devices; 
 
+/*
+ * Setting up module parameters for the module variables
+ */
 module_param(scull_major, uint, S_IRUGO);
 module_param(scull_minor, uint, S_IRUGO);
 module_param(scull_nr_devs, uint, S_IRUGO);
 module_param(scull_quantum, uint, S_IRUGO);
 module_param(scull_qset, uint, S_IRUGO);
 
-struct scull_dev *scull_devices;
+
 
 int scull_open(struct inode *inode, struct file *filp)
 {
@@ -161,6 +172,9 @@ ssize_t scull_write(struct file *filp, const char __user *buf, size_t count, lof
 
     printk(KERN_INFO "Scull device is being written\n");
 
+    if (down_interruptible(&dev->sem))
+        return -ERESTARTSYS;
+
     item = (long)*f_pos / itemsize;
     rest = (long)*f_pos % itemsize;
     s_pos = rest / quantum;
@@ -201,6 +215,7 @@ ssize_t scull_write(struct file *filp, const char __user *buf, size_t count, lof
         dev->size = *f_pos;
 
 out:
+    up(&dev->sem);
     return retval;
 }
 
@@ -241,6 +256,11 @@ static void scull_exit(void)
         }
         kfree(scull_devices);
     }
+
+#ifdef SCULL_DEBUG
+    scull_remove_proc();
+#endif
+
     unregister_chrdev_region(dev, scull_nr_devs);
 }
 
@@ -281,8 +301,13 @@ static int __init scull_init(void)
     {
         scull_devices[i].quantum = scull_quantum;
         scull_devices[i].qset = scull_qset;
+        init_MUTEX(&scull_devices[i].sem);
         scull_setup_cdev(&scull_devices[i], i);
     }
+
+#ifdef SCULL_DEBUG
+    scull_create_proc();
+#endif
 
     return 0; // return sucess
 
@@ -290,6 +315,129 @@ fail:
     scull_exit();
     return result;
 }
+
+
+int scull_read_procmem(char *buf, char **start, off_t offset,
+                   int count, int *eof, void *data)
+{
+	int i, j, len = 0;
+	int limit = count - 80; /* Don't print more than this */
+
+	for (i = 0; i < scull_nr_devs && len <= limit; i++) 
+    {
+		struct scull_dev *d = &scull_devices[i];
+		struct scull_qset *qs = d->data;
+
+		len += sprintf(buf+len,"\nDevice %i: qset %i, q %i, sz %li\n",
+				i, d->qset, d->quantum, d->size);
+		for (; qs && len <= limit; qs = qs->next) /* scan the list */
+		{
+        	len += sprintf(buf + len, "  item at %p, qset at %p\n",
+					qs, qs->data);
+			if (qs->data && !qs->next) /* dump only the last item */
+            {
+				for (j = 0; j < d->qset; j++)
+                {
+					if (qs->data[j])
+						len += sprintf(buf + len,
+								"    % 4i: %8p\n",
+								j, qs->data[j]);
+				}
+            }
+		}
+		up(&scull_devices[i].sem);
+	}
+	*eof = 1;
+	return len;
+}
+
+static void *scull_seq_start(struct seq_file *s, loff_t *pos)
+{
+    if (*pos >= scull_nr_devs)
+    {
+        return NULL;
+    }
+    return scull_devices + *pos;
+}
+
+static void *scull_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+    (*pos)++;
+    if (*pos >= scull_nr_devs)
+    {
+        return NULL;
+    }
+    return scull_devices + *pos;
+}
+
+static void scull_seq_stop(struct seq_file *s, void *v)
+{
+
+}
+
+static int scull_seq_show(struct seq_file *s, void *v)
+{
+    struct scull_dev *dev = (struct scull_dev *) v;
+    struct scull_qset *d;
+    int i;
+
+    seq_printf(s, "\nDevice %i:  qset %i, q %i, sz %li\n", 
+            (int)(dev - scull_devices), dev->qset, dev->quantum, dev->size);
+    
+    for (d = dev->data; d; d = d->next)
+    {
+        /* Scan the list */
+        seq_printf(s, "item at %p, qset at %p\n", d, d->data);
+        if (d->data && !d->next)
+        {
+            for (i = 0; i < dev->qset; i++)
+            {
+                if (d->data[i])
+                {
+                    seq_printf(s, "   %4i: %8p\n", i, d->data[i]);
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static struct seq_operations scull_seq_ops = {
+    .start = scull_seq_start,
+    .next = scull_seq_next,
+    .stop = scull_seq_stop,
+    .show = scull_seq_show
+};
+
+static int scull_proc_open(struct inode *inode, struct file *file)
+{
+    return seq_open(file, &scull_seq_ops);
+}
+
+static const struct proc_ops scull_proc_ops = {
+    .proc_open = scull_proc_open,
+    .proc_read = seq_read,
+    .proc_lseek = seq_lseek,
+    .proc_release = seq_release
+};
+
+static void scull_create_proc(void)
+{
+    struct proc_dir_entry *entry;
+
+    entry = proc_create("scull_seq", 0, NULL, &scull_proc_ops);
+    if (entry)
+    {
+        printk(KERN_INFO "Cannot create scull proc\n");
+    }
+}
+
+static void scull_remove_proc(void)
+{
+    remove_proc_entry("scullmem", NULL);
+    remove_proc_entry("scullseq", NULL);
+}
+
 
 /* Essential to initialise and deinitialise a module */
 module_init(scull_init);
